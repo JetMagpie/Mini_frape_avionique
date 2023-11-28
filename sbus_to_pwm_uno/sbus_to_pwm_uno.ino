@@ -1,6 +1,7 @@
 #include <Servo.h>//the servo output library
 
 uint16_t CH[18];//channel values are stored here
+uint8_t buf[26];
 char sbus_flag=0;
 const int minAngle = 30; // servo angle range
 const int maxAngle = 150;
@@ -37,9 +38,9 @@ void loop(){
   moteur(CH[2]);
   setServoAngle(servo4,CH[3]);
   setServoAngle(servo5,CH[4]);
+}
 
-void serialEvent(void)//this function is activated by serial input, and saves sbus data in buf
-{
+void serialEvent(void){//this function is activated by serial input, and saves sbus data in buf
     if(Serial.available()>25){
       while(sbus_flag==0){
         buf[0]=Serial.read();
