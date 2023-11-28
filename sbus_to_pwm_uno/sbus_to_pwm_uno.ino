@@ -14,7 +14,7 @@ std::array<Servo,5> g_liste_servos;
 
 void setup()
 {   
-  std::map<int,in> liste_pins_servos = { //Relation servo/pin
+  std::map<int,int> liste_pins_servos = { //Relation servo/pin
     {0,3}
     {1,5}
     {2,6}
