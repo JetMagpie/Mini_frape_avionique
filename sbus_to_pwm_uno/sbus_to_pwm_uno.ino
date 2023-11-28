@@ -1,23 +1,30 @@
 #include <Servo.h>//the servo output library
+#include <array>
+#include <map>
 
 uint16_t CH[18];//channel values are stored here
 uint8_t buf[26];
 char sbus_flag=0;
 const int minAngle = 30; // servo angle range
 const int maxAngle = 150;
-Servo servo1;
-Servo servo2;
-Servo servo3;
-Servo servo4;
-Servo servo5;
+
+//On crée une array contenant tous les servos
+std::array<Servo,5> g_liste_servos;
+
 
 void setup()
 {   
-  servo1.attach(3);//servo pins
-  servo2.attach(5);
-  servo3.attach(6);
-  servo4.attach(9);
-  servo5.attach(10);
+  std::map<int,in> liste_pins_servos = { //Relation servo/pin
+    {0,3}
+    {1,5}
+    {2,6}
+    {3,9}
+    {4,10}
+  }
+  int i(0);
+  //On assigne à chaque servo un pin
+  for(Servo &servo : g_liste_servos)
+    servo.attach(liste_pins_servos[i++]);
   Serial.begin(100000);
 }
 
@@ -33,11 +40,12 @@ void moteur(int throttle) {//the mapping of throttle is different than servos
 
 void loop(){
   delay(5);
-  setServoAngle(servo1,CH[0]);
-  setServoAngle(servo2,CH[1]);
-  moteur(CH[2]);
-  setServoAngle(servo4,CH[3]);
-  setServoAngle(servo5,CH[4]);
+  int i(0);
+  for(Servo &servo : g_liste_servos)
+    if(i == 2)
+      moteur(CH[i++]);
+    else
+      setServoAngle(servo,CH[i++]);
 }
 
 void serialEvent(void){//this function is activated by serial input, and saves sbus data in buf
@@ -59,21 +67,23 @@ void serialEvent(void){//this function is activated by serial input, and saves s
 
 void Sbus_Data_Count(uint8_t *buf){//function translating sbus data to integers
   if(buf[0]==0x0f&&buf[24]==0x00){
-    CH[ 0] = ((int16_t)buf[ 1] >> 0 | ((int16_t)buf[ 2] << 8 )) & 0x07FF;
-    CH[ 1] = ((int16_t)buf[ 2] >> 3 | ((int16_t)buf[ 3] << 5 )) & 0x07FF;
-    CH[ 2] = ((int16_t)buf[ 3] >> 6 | ((int16_t)buf[ 4] << 2 )  | (int16_t)buf[ 5] << 10 ) & 0x07FF;
-    CH[ 3] = ((int16_t)buf[ 5] >> 1 | ((int16_t)buf[ 6] << 7 )) & 0x07FF;
-    CH[ 4] = ((int16_t)buf[ 6] >> 4 | ((int16_t)buf[ 7] << 4 )) & 0x07FF;
-    CH[ 5] = ((int16_t)buf[ 7] >> 7 | ((int16_t)buf[ 8] << 1 )  | (int16_t)buf[ 9] <<  9 ) & 0x07FF;
-    CH[ 6] = ((int16_t)buf[ 9] >> 2 | ((int16_t)buf[10] << 6 )) & 0x07FF;
-    CH[ 7] = ((int16_t)buf[10] >> 5 | ((int16_t)buf[11] << 3 )) & 0x07FF;
-    CH[ 8] = ((int16_t)buf[12] << 0 | ((int16_t)buf[13] << 8 )) & 0x07FF;
-    CH[ 9] = ((int16_t)buf[13] >> 3 | ((int16_t)buf[14] << 5 )) & 0x07FF;
-    CH[10] = ((int16_t)buf[14] >> 6 | ((int16_t)buf[15] << 2 )  | (int16_t)buf[16] << 10 ) & 0x07FF;
-    CH[11] = ((int16_t)buf[16] >> 1 | ((int16_t)buf[17] << 7 )) & 0x07FF;
-    CH[12] = ((int16_t)buf[17] >> 4 | ((int16_t)buf[18] << 4 )) & 0x07FF;
-    CH[13] = ((int16_t)buf[18] >> 7 | ((int16_t)buf[19] << 1 )  | (int16_t)buf[20] <<  9 ) & 0x07FF;
-    CH[14] = ((int16_t)buf[20] >> 2 | ((int16_t)buf[21] << 6 )) & 0x07FF;
-    CH[15] = ((int16_t)buf[21] >> 5 | ((int16_t)buf[22] << 3 )) & 0x07FF;
+    std::array<int,16> map_indexs = {1,2,3,5,6,7,9,10,12,13,14,16,17,18,20,21}; //Relation indexs CH et buf
+    for(int i =0;i<16;i++){
+      //Formule générale
+      CH[i] = (static_cast<int16_t>buf[map_indexs[i]] >> i*3%8) | (static_cast<int16_t>(buf[map_indexs[i]]) << (8-i*3%8));
+      //Exceptions
+      switch(i){
+        case 2:
+        case 10:
+          CH[i] |= static_cast<int16_t>(buf[map_indexs[i]+2]) << 10; //Cas 2 et 10
+          break;
+        case 5:
+        case 13:
+          CH[i] |= static_cast<int16_t>(buf[map_indexs[i]+2]) << 9; //Cas 5 et 13
+          break;     
+      }
+      //Fin formule générale
+      CH[i] &= 0x07FF;
+    }
   }
 }
