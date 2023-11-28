@@ -49,19 +49,18 @@ void loop(){
 }
 
 void serialEvent(void){//this function is activated by serial input, and saves sbus data in buf
-    if(Serial.available()>25){
-      while(sbus_flag==0){
-        buf[0]=Serial.read();
-        if(buf[0]==0x0f)//the sbus communication begins with 0x0f
-        {sbus_flag=1;}
-      }
-      if(sbus_flag==1){
-        for(int i=1;i<26;i++){
-          buf[i]=Serial.read();
-        }
-        sbus_flag=0;
-      }
-  }
+  //Gestion d'erreurs
+  if(Serial.available()<=25)
+    goto close_function;
+  
+  while(true)
+    if((buf[0]=Serial.read())==0x0f)//the sbus communication begins with 0x0f
+      break;
+  
+  for(int i=1;i<26;i++)
+    buf[i]=Serial.read();
+  
+  close_function:
   Sbus_Data_Count(buf);
 }
 
