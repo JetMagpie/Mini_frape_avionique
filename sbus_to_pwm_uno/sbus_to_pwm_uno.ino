@@ -2,6 +2,9 @@
 
 uint16_t CH[18];//channel values are stored here
 uint8_t buf[26];
+uint8_t failsafe=0;//transmitter disconnection flag
+uint8_t rxinput_timeout=0;//reciever timeout flag
+unsigned long lastSerialInputTime=0;
 char sbus_flag=0;
 const int minAngle = 30; // servo angle range
 const int maxAngle = 150;
@@ -21,8 +24,8 @@ void setup()
   Serial.begin(100000);
 }
 
-void setServoAngle(Servo s, int angle) {//mapping the channel value to pwm output for servos
-  int Angle = map(angle, 512, 1536, minAngle, maxAngle);
+void setServoAngle(Servo s, int ch) {//mapping the channel value to pwm output for servos
+  int Angle = map(ch, 512, 1536, minAngle, maxAngle);
   s.write(Angle);
 }
 
@@ -32,12 +35,21 @@ void moteur(int throttle) {//the mapping of throttle is different than servos
 }
 
 void loop(){
-  delay(5);
+  delay(2);
+  if (millis()-lastSerialInputTime > 100) {//detect serial disconnection
+    rxinput_timeout = 1;
+  }
+  if(failsafe||rxinput_timeout){//enter protection mode
+    CH[0]=1024;
+    CH[1]=1024;
+    CH[2]=512;
+    CH[3]=1024;
+  }
   setServoAngle(servo1,CH[0]);
   setServoAngle(servo2,CH[1]);
   moteur(CH[2]);
   setServoAngle(servo4,CH[3]);
-  setServoAngle(servo5,CH[4]);
+  setServoAngle(servo5,CH[4]);   
 }
 
 void serialEvent(void){//this function is activated by serial input, and saves sbus data in buf
@@ -53,6 +65,8 @@ void serialEvent(void){//this function is activated by serial input, and saves s
         }
         sbus_flag=0;
       }
+      lastSerialInputTime = millis();
+      rxinput_timeout = 0;
   }
   Sbus_Data_Count(buf);
 }
@@ -76,4 +90,8 @@ void Sbus_Data_Count(uint8_t *buf){//function translating sbus data to integers
     CH[14] = ((int16_t)buf[20] >> 2 | ((int16_t)buf[21] << 6 )) & 0x07FF;
     CH[15] = ((int16_t)buf[21] >> 5 | ((int16_t)buf[22] << 3 )) & 0x07FF;
   }
+  if(buf[23]==0x0C){
+    failsafe=1;
+  }
+  else failsafe=0;//read failsafe signal from receiver
 }
