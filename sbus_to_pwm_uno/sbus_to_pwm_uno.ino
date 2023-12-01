@@ -1,6 +1,5 @@
 #include <Servo.h>//the servo output library
-#include <array>
-#include <map>
+
 
 uint16_t CH[18];//channel values are stored here
 uint8_t buf[26];
@@ -9,18 +8,12 @@ const int minAngle = 30; // servo angle range
 const int maxAngle = 150;
 
 //On crée une array contenant tous les servos
-std::array<Servo,5> g_liste_servos;
+Servo g_liste_servos[5];
 
 
 void setup()
 {   
-  std::map<int,int> liste_pins_servos = { //Relation servo/pin
-    {0,3}
-    {1,5}
-    {2,6}
-    {3,9}
-    {4,10}
-  }
+  int liste_pins_servos[5] = {3,5,6,9,10};
   int i(0);
   //On assigne à chaque servo un pin
   for(Servo &servo : g_liste_servos)
@@ -35,7 +28,7 @@ void setServoAngle(Servo s, int angle) {//mapping the channel value to pwm outpu
 
 void moteur(int throttle) {//the mapping of throttle is different than servos
   int rot = map(throttle, 512, 1536, 60, 130);
-  servo3.write(rot);
+  g_liste_servos[3].write(rot);
 }
 
 void loop(){
@@ -66,10 +59,10 @@ void serialEvent(void){//this function is activated by serial input, and saves s
 
 void Sbus_Data_Count(uint8_t *buf){//function translating sbus data to integers
   if(buf[0]==0x0f&&buf[24]==0x00){
-    std::array<int,16> map_indexs = {1,2,3,5,6,7,9,10,12,13,14,16,17,18,20,21}; //Relation indexs CH et buf
+    int map_indexs[16] = {1,2,3,5,6,7,9,10,12,13,14,16,17,18,20,21}; //Relation indexs CH et buf
     for(int i =0;i<16;i++){
       //Formule générale
-      CH[i] = (static_cast<int16_t>buf[map_indexs[i]] >> i*3%8) | (static_cast<int16_t>(buf[map_indexs[i]]) << (8-i*3%8));
+      CH[i] = (static_cast<int16_t>(buf[map_indexs[i]]) >> i*3%8) | (static_cast<int16_t>(buf[map_indexs[i]]) << (8-i*3%8));
       //Exceptions
       switch(i){
         case 2:
